@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"os"
 	"path"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -26,11 +27,11 @@ func printHelp() {
 type link struct {
 	URL          string        `json:"url"`
 	Latency      time.Duration `json:"latency"`
-	ResponseCode int           `json:"responseCode"`
-	Error        error         `json:"error"`
+	ResponseCode string        `json:"responseCode"`
+	Error        string        `json:"error"`
 }
 
-func NewLink(url string, latency time.Duration, responseCode int, err error) *link {
+func NewLink(url string, latency time.Duration, responseCode string, err string) *link {
 	l := new(link)
 	l.URL = url
 	l.Latency = latency
@@ -40,18 +41,18 @@ func NewLink(url string, latency time.Duration, responseCode int, err error) *li
 }
 
 type summary struct {
-	URL              string      `json:"url"`
-	AvgLatency       float64     `json:"avgLatency"`
-	ResponseCode     int         `json:"responseCode"`
-	TotalLinks       int         `json:"totalLinks"`
-	ResponsesPerCode map[int]int `json:"responsesPerCode"`
+	URL              string         `json:"url"`
+	AvgLatency       float64        `json:"avgLatency"`
+	ResponseCode     string         `json:"responseCode"`
+	TotalLinks       int            `json:"totalLinks"`
+	ResponsesPerCode map[string]int `json:"responsesPerCode"`
 	Links            []link
 }
 
 func NewSummary(url string) *summary {
 	s := new(summary)
 	s.URL = url
-	s.ResponsesPerCode = make(map[int]int)
+	s.ResponsesPerCode = make(map[string]int)
 	return s
 }
 
@@ -120,7 +121,7 @@ func main() {
 	defer resp.Body.Close()
 
 	pageSummary := NewSummary(pageURL.String())
-	pageSummary.ResponseCode = resp.StatusCode
+	pageSummary.ResponseCode = strconv.Itoa(resp.StatusCode)
 
 	doc, err := goquery.NewDocumentFromReader(resp.Body)
 	if err != nil {
@@ -134,13 +135,23 @@ func main() {
 			n.Add(1)
 			go func(href string) {
 				u := ParseLinkHref(pageURL, href)
+				statusCode := "n/a"
+				errorMessage := ""
 
 				start := time.Now()
 				r, e := http.Get(u.String())
 				finish := time.Now()
-				r.Body.Close()
 
-				l := NewLink(u.String(), finish.Sub(start), r.StatusCode, e)
+				if r != nil {
+					r.Body.Close()
+					statusCode = strconv.Itoa(r.StatusCode)
+				}
+
+				if e != nil {
+					errorMessage = e.Error()
+				}
+
+				l := NewLink(u.String(), finish.Sub(start), statusCode, errorMessage)
 				pageSummary.AddLink(l)
 				n.Done()
 			}(href)

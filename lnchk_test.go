@@ -29,7 +29,7 @@ func TestValidateArgs(t *testing.T) {
 
 }
 
-func expectSummary(t *testing.T, s summary, links int, latency float64, responses map[int]int) {
+func expectSummary(t *testing.T, s summary, links int, latency float64, responses map[string]int) {
 	if s.TotalLinks != links {
 		t.Errorf("Summary.TotalLinks, got: %d, want: %d.", s.TotalLinks, links)
 	}
@@ -46,20 +46,20 @@ func expectSummary(t *testing.T, s summary, links int, latency float64, response
 func TestAddLink(t *testing.T) {
 	s := NewSummary("http://example.com")
 
-	l := NewLink("http://example.com/about", 10, 200, nil)
+	l := NewLink("http://example.com/about", 10, "200", "")
 	s.AddLink(l)
 
-	expectSummary(t, *s, 1, 10, map[int]int{200: 1})
+	expectSummary(t, *s, 1, 10, map[string]int{"200": 1})
 
-	l = NewLink("http://example.com/foo", 20, 200, nil)
+	l = NewLink("http://example.com/foo", 20, "200", "")
 	s.AddLink(l)
 
-	expectSummary(t, *s, 2, 15, map[int]int{200: 2})
+	expectSummary(t, *s, 2, 15, map[string]int{"200": 2})
 
-	l = NewLink("http://example.com/not-found", 30, 404, nil)
+	l = NewLink("http://example.com/not-found", 30, "404", "")
 	s.AddLink(l)
 
-	expectSummary(t, *s, 3, 20, map[int]int{200: 2, 404: 1})
+	expectSummary(t, *s, 3, 20, map[string]int{"200": 2, "404": 1})
 }
 
 func TestParseLinkHref(t *testing.T) {
