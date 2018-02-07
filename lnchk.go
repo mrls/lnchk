@@ -81,21 +81,28 @@ func ValidateArgs(args []string) error {
 	return nil
 }
 
-func ParseLinkHref(pageURL *url.URL, href string) *url.URL {
+func ParseLinkHref(pageURL *url.URL, href string) (*url.URL, error) {
 	u, err := url.Parse(href)
-	if err == nil {
-		if u.Host == "" {
-			u.Host = pageURL.Host
-			if !strings.HasPrefix(u.Path, "/") {
-				u.Path = path.Join(path.Dir(pageURL.Path), u.Path)
-			}
-		}
+	if err != nil {
+		return u, err
+	}
 
-		if u.Scheme == "" {
-			u.Scheme = pageURL.Scheme
+	switch u.Scheme {
+	case "":
+		u.Scheme = pageURL.Scheme
+	case "http", "https":
+	default:
+		err = fmt.Errorf("Unsuported Scheme %s", u.Scheme)
+	}
+
+	if u.Host == "" {
+		u.Host = pageURL.Host
+		if !strings.HasPrefix(u.Path, "/") {
+			u.Path = path.Join(path.Dir(pageURL.Path), u.Path)
 		}
 	}
-	return u
+
+	return u, err
 }
 
 func main() {
@@ -134,7 +141,7 @@ func main() {
 		if href, ok := s.Attr("href"); ok {
 			n.Add(1)
 			go func(href string) {
-				u := ParseLinkHref(pageURL, href)
+				if linkURL, linkErr := ParseLinkHref(pageURL, href); linkErr == nil {
 				statusCode := "n/a"
 				errorMessage := ""
 

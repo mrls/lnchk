@@ -67,21 +67,27 @@ func TestParseLinkHref(t *testing.T) {
 	p2, _ := url.Parse("http://example.com/foo/")
 	p3, _ := url.Parse("http://example.com/foo/bar.html")
 	tests := []struct {
-		pageURL *url.URL
-		path    string
-		want    string
+		pageURL  *url.URL
+		path     string
+		want     string
+		eMessage string
 	}{
-		{p1, "about", "http://example.com/about"},
-		{p2, "bar", "http://example.com/foo/bar"},
-		{p3, "baz", "http://example.com/foo/baz"},
-		{p2, "/baz", "http://example.com/baz"},
-		{p2, "//foo.com", "http://foo.com"},
+		{p1, "about", "http://example.com/about", ""},
+		{p2, "bar", "http://example.com/foo/bar", ""},
+		{p3, "baz", "http://example.com/foo/baz", ""},
+		{p2, "/baz", "http://example.com/baz", ""},
+		{p2, "//foo.com", "http://foo.com", ""},
+		{p1, "mailto:jdoe@example.com", "mailto:jdoe@example.com", "Unsuported Scheme mailto"},
 	}
 
 	for _, test := range tests {
-		url := ParseLinkHref(test.pageURL, test.path)
+		url, err := ParseLinkHref(test.pageURL, test.path)
 		if url.String() != test.want {
 			t.Errorf("Given: %s\nwant: %s\ngot: %s", test.path, test.want, url.String())
+		}
+
+		if err != nil && err.Error() != test.eMessage {
+			t.Errorf("Expected to return error: '%s' but instead returned error: '%s'", test.eMessage, err.Error())
 		}
 	}
 }
