@@ -47,6 +47,7 @@ type summary struct {
 	TotalLinks       int            `json:"totalLinks"`
 	ResponsesPerCode map[string]int `json:"responsesPerCode"`
 	Links            []link
+	lock             sync.Mutex
 }
 
 func NewSummary(url string) *summary {
@@ -105,6 +106,28 @@ func ParseLinkHref(pageURL *url.URL, href string) (*url.URL, error) {
 	return u, err
 }
 
+func checkLink(u string) (statusCode string, errorMessage string, duration time.Duration) {
+	statusCode = "n/a"
+	errorMessage = ""
+
+	start := time.Now()
+	r, e := http.Get(u)
+	finish := time.Now()
+
+	if r != nil {
+		r.Body.Close()
+		statusCode = strconv.Itoa(r.StatusCode)
+	}
+
+	if e != nil {
+		errorMessage = e.Error()
+	}
+
+	duration = finish.Sub(start)
+
+	return
+}
+
 func main() {
 
 	err := ValidateArgs(os.Args)
@@ -142,24 +165,15 @@ func main() {
 			n.Add(1)
 			go func(href string) {
 				if linkURL, linkErr := ParseLinkHref(pageURL, href); linkErr == nil {
-				statusCode := "n/a"
-				errorMessage := ""
+					statusCode, errorMessage, duration := checkLink(linkURL.String())
 
-				start := time.Now()
-				r, e := http.Get(u.String())
-				finish := time.Now()
+					l := NewLink(linkURL.String(), duration, statusCode, errorMessage)
 
-				if r != nil {
-					r.Body.Close()
-					statusCode = strconv.Itoa(r.StatusCode)
+					pageSummary.lock.Lock()
+					pageSummary.AddLink(l)
+					pageSummary.lock.Unlock()
 				}
 
-				if e != nil {
-					errorMessage = e.Error()
-				}
-
-				l := NewLink(u.String(), finish.Sub(start), statusCode, errorMessage)
-				pageSummary.AddLink(l)
 				n.Done()
 			}(href)
 		}
